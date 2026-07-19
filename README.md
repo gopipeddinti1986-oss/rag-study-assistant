@@ -68,9 +68,6 @@ docs/
 
 ---
 
-## Screenshots
-
-(We'll add screenshots after the project becomes functional.)
 
 ---
 
