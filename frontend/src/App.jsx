@@ -1,16 +1,18 @@
+import MainLayout from "./layout/MainLayout";
+import Header from "./components/Header";
+import UploadPanel from "./components/UploadPanel";
+import ChatPanel from "./components/ChatPanel";
+
 function App() {
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-xl shadow-lg">
-        <h1 className="text-4xl font-bold text-blue-600">
-          🎉 Tailwind CSS is Working!
-        </h1>
+    <MainLayout>
+      <Header />
 
-        <p className="mt-4 text-gray-600">
-          RAG Study Assistant setup completed.
-        </p>
-      </div>
-    </div>
+      <main className="grid grid-cols-2 gap-6 p-6 max-w-7xl mx-auto">
+        <UploadPanel />
+        <ChatPanel />
+      </main>
+    </MainLayout>
   );
 }
 
