@@ -27,3 +27,6 @@ frontend/dist/
 # ======================
 .DS_Store
 Thumbs.db
+
+backend/database/
+backend/uploads/

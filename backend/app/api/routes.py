@@ -1,8 +1,11 @@
 from fastapi import APIRouter, UploadFile, File
 from pathlib import Path
 from app.services.text_splitter import split_text
+from app.services.embeddings import create_embeddings
+from app.services.vector_store import store_chunks
 import fitz
 import shutil
+
 
 router = APIRouter()
 
@@ -41,17 +44,19 @@ async def upload_pdf(file: UploadFile = File(...)):
 
     # Split text into chunks
     chunks = split_text(text)
+    embeddings = create_embeddings(chunks)
+    stored_chunks = store_chunks(chunks, embeddings)
 
     # Count characters
     character_count = len(text)
 
     # Return response
     return {
-        "message": "File uploaded successfully",
-        "filename": file.filename,
-        "pages": page_count,
-        "characters": character_count,
-        "chunks": len(chunks),
-        "first_chunk": chunks[0] if chunks else "",
-        "saved_to": str(file_path)
+    "message": "File uploaded successfully",
+    "filename": file.filename,
+    "pages": page_count,
+    "characters": len(text),
+    "chunks": len(chunks),
+    "stored_chunks": stored_chunks,
+    "saved_to": str(file_path)
     }
