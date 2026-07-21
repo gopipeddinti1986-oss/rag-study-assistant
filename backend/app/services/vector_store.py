@@ -5,7 +5,7 @@ client = chromadb.PersistentClient(path="database")
 
 # Create (or load) collection
 collection = client.get_or_create_collection(
-    name="study_notes"
+    name="rag_documents"
 )
 
 
