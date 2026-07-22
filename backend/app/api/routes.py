@@ -1,3 +1,6 @@
+from app.models.ask import AskRequest
+from app.services.retriever import retrieve
+from app.services.llm import ask_llm
 from fastapi import APIRouter, UploadFile, File
 from pathlib import Path
 from app.services.text_splitter import split_text
@@ -45,7 +48,17 @@ async def upload_pdf(file: UploadFile = File(...)):
     # Split text into chunks
     chunks = split_text(text)
     embeddings = create_embeddings(chunks)
-    stored_chunks = store_chunks(chunks, embeddings)
+    pages = []
+
+    for i in range(len(chunks)):
+        pages.append(i + 1)
+
+    stored_chunks = store_chunks(
+        chunks,
+        embeddings,
+        file.filename,
+        pages
+    )
 
     # Count characters
     character_count = len(text)
@@ -59,4 +72,38 @@ async def upload_pdf(file: UploadFile = File(...)):
     "chunks": len(chunks),
     "stored_chunks": stored_chunks,
     "saved_to": str(file_path)
+    }
+
+@router.post("/ask")
+def ask_question(request: AskRequest):
+
+    chunks = retrieve(request.question)
+
+    context = "\n\n".join(
+        chunk["text"] for chunk in chunks
+    )
+    prompt = f"""
+You are a helpful study assistant.
+
+Answer ONLY using the context below.
+
+Context:
+{context}
+
+Question:
+{request.question}
+"""
+
+    answer = ask_llm(prompt)
+
+    return {
+        "question": request.question,
+        "answer": answer,
+        "sources": [
+            {
+                "filename": chunk["filename"],
+                "page": chunk["page"]
+            }
+            for chunk in chunks
+        ]
     }

@@ -9,17 +9,26 @@ collection = client.get_or_create_collection(
 )
 
 
-def store_chunks(chunks, embeddings):
+def store_chunks(chunks, embeddings, filename, pages):
     """
-    Store chunks and embeddings in ChromaDB.
+    Store chunks, embeddings, and metadata in ChromaDB.
     """
 
     ids = [str(i) for i in range(len(chunks))]
 
+    metadata = []
+
+    for page in pages:
+        metadata.append({
+            "filename": filename,
+            "page": page
+        })
+
     collection.add(
         ids=ids,
         documents=chunks,
-        embeddings=embeddings.tolist()
+        embeddings=embeddings.tolist(),
+        metadatas=metadata
     )
 
     return len(chunks)

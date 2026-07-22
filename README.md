@@ -41,27 +41,50 @@ docs/
 ## Sprint Progress
 
 ✅ Sprint 0
-- Project initialization
-- React setup
-- FastAPI setup
-- Tailwind CSS
+- Project setup
 - GitHub repository
+- FastAPI setup
+- React + Vite
+- Virtual environment
+- Documentation
+
+Status: Complete
 
 ✅ Sprint 1
-- Professional React UI
-- Upload panel
-- Chat panel
-- File picker
-- Dashboard layout
+- PDF upload endpoint
+- Save uploaded PDF
+- Extract text using PyMuPDF
+- Swagger testing
 
-🚧 Sprint 2
-- React ↔ FastAPI integration
+Status: Complete
 
-⏳ Sprint 3
-- PDF processing
+✅ Sprint 2
+- Text chunking
+- Sentence Transformers embeddings
+- ChromaDB integration
+- Embedding storage
 
-⏳ Sprint 4
+Status: Complete
+
+✅ Sprint 3
+- Retriever
+- Similarity search
+- Top-k chunk retrieval
+- Metadata (filename + page)
+- Documentation
+
+Status: Complete
+
+✅ Sprint 4
+- /ask endpoint
+- Groq integration
+- Prompt building
 - RAG pipeline
+- Source citations
+- Swagger testing
+- AI answers
+
+Status: Complete
 
 ⏳ Sprint 5
 - Deployment

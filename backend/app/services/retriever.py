@@ -1,18 +1,31 @@
-from chromadb import PersistentClient
-from sentence_transformers import SentenceTransformer
+import chromadb
+from app.services.embeddings import create_embeddings
 
-client = PersistentClient(path="database")
-collection = client.get_collection("rag_documents")
+client = chromadb.PersistentClient(path="database")
 
-model = SentenceTransformer("all-MiniLM-L6-v2")
+collection = client.get_or_create_collection(
+    name="rag_documents"
+)
 
 
-def retrieve(query: str, top_k: int = 5):
-    query_embedding = model.encode(query).tolist()
+from app.services.vector_store import collection
 
+def retrieve(query, k=5):
     results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=top_k
+        query_texts=[query],
+        n_results=k
     )
 
-    return results["documents"][0]
+    retrieved = []
+
+    documents = results["documents"][0]
+    metadatas = results["metadatas"][0]
+
+    for doc, meta in zip(documents, metadatas):
+        retrieved.append({
+            "text": doc,
+            "filename": meta["filename"],
+            "page": meta["page"]
+        })
+
+    return retrieved
