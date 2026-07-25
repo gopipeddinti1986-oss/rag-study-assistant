@@ -3,67 +3,62 @@ import pytesseract
 
 from pdf2image import convert_from_path
 
-# Tell pytesseract where Tesseract is installed
+# Tesseract installation
 pytesseract.pytesseract.tesseract_cmd = (
     r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 )
 
-# Poppler bin folder
 POPPLER_PATH = r"C:\poppler\poppler-26.02.0\Library\bin"
 
 
 def extract_text(pdf_path: str) -> str:
     """
-    Extract text from a PDF.
+    Extract text page by page.
 
-    If the PDF already contains selectable text,
-    return that text.
-
-    Otherwise run OCR using Tesseract.
+    Uses normal extraction if possible.
+    Falls back to OCR only for scanned pages.
     """
 
-    try:
-        doc = fitz.open(pdf_path)
+    doc = fitz.open(pdf_path)
 
-        text = ""
+    images = convert_from_path(
+        pdf_path,
+        poppler_path=POPPLER_PATH
+    )
 
-        for page in doc:
-            text += page.get_text()
+    final_text = ""
 
-        doc.close()
+    for page_number in range(len(doc)):
 
-        # Normal PDF
-        if text.strip():
-            print("✅ Normal PDF detected")
-            return text
+        page = doc[page_number]
 
-        print("🔍 Scanned PDF detected. Running OCR...")
+        page_text = page.get_text().strip()
 
-        images = convert_from_path(
-            pdf_path,
-            poppler_path=POPPLER_PATH
-        )
+        if page_text:
 
-        ocr_text = ""
+            print(f"✅ Page {page_number + 1}: Text extracted")
 
-        for index, image in enumerate(images, start=1):
-            print(f"📄 OCR Processing Page {index}")
+            final_text += page_text + "\n"
+
+        else:
+
+            print(f"🔍 Page {page_number + 1}: OCR")
+
+            image = images[page_number]
 
             try:
-                page_text = pytesseract.image_to_string(
+
+                ocr_text = pytesseract.image_to_string(
                     image,
                     lang="eng"
                 )
 
-                ocr_text += page_text + "\n"
+                final_text += ocr_text + "\n"
 
             except Exception as e:
-                print(f"❌ OCR Error on page {index}: {e}")
 
-        print("✅ OCR Completed Successfully")
+                print(f"❌ OCR Error Page {page_number + 1}: {e}")
 
-        return ocr_text
+    doc.close()
 
-    except Exception as e:
-        print(f"❌ OCR Service Error: {e}")
-        return ""
+    return final_text
