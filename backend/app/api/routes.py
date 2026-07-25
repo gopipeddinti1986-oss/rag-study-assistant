@@ -1,20 +1,25 @@
-from fastapi import APIRouter, UploadFile, File, Depends
-from sqlalchemy.orm import Session
 from pathlib import Path
-import fitz
 import shutil
+
+import fitz
+from fastapi import APIRouter, UploadFile, File, Depends
+from sqlalchemy import desc
+from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.database.models import ChatHistory, User
 from app.auth.jwt import get_current_user
 
 from app.models.ask import AskRequest
+
+from app.services.ocr import extract_text
 from app.services.text_splitter import split_text
 from app.services.embeddings import create_embeddings
 from app.services.vector_store import store_chunks
 from app.services.retriever import retrieve
 from app.services.llm import ask_llm
 from app.services.chat_service import save_chat
+
 
 router = APIRouter()
 
@@ -39,15 +44,18 @@ async def upload_pdf(
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
+    # Count pages
     doc = fitz.open(file_path)
-
     page_count = len(doc)
-
-    text = ""
-    for page in doc:
-        text += page.get_text()
-
     doc.close()
+
+    # Extract text (Normal PDF or OCR)
+    text = extract_text(str(file_path))
+
+    if not text.strip():
+        return {
+            "message": "No text could be extracted from this PDF."
+        }
 
     chunks = split_text(text)
     embeddings = create_embeddings(chunks)
@@ -55,7 +63,7 @@ async def upload_pdf(
     pages = []
 
     for i in range(len(chunks)):
-        pages.append(i + 1)
+        pages.append(min(i + 1, page_count))
 
     stored_chunks = store_chunks(
         chunks,
@@ -105,15 +113,16 @@ Question:
 
     answer = ask_llm(prompt)
 
-
-    save_chat(
+    chat = save_chat(
         db=db,
         user_email=current_user.email,
         question=request.question,
-        answer=answer
+        answer=answer,
+        conversation_id=request.conversation_id
     )
 
     return {
+        "conversation_id": chat.conversation_id,
         "question": request.question,
         "answer": answer,
         "sources": [
@@ -123,4 +132,80 @@ Question:
             }
             for chunk in chunks
         ]
+    }
+
+
+@router.get("/conversations")
+def get_conversations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    chats = (
+        db.query(ChatHistory)
+        .filter(ChatHistory.user_email == current_user.email)
+        .order_by(desc(ChatHistory.created_at))
+        .all()
+    )
+
+    conversations = {}
+
+    for chat in chats:
+        if chat.conversation_id not in conversations:
+            conversations[chat.conversation_id] = {
+                "conversation_id": chat.conversation_id,
+                "title": chat.title,
+                "created_at": chat.created_at
+            }
+
+    return list(conversations.values())
+
+
+@router.get("/conversations/{conversation_id}")
+def get_conversation(
+    conversation_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    chats = (
+        db.query(ChatHistory)
+        .filter(
+            ChatHistory.user_email == current_user.email,
+            ChatHistory.conversation_id == conversation_id
+        )
+        .order_by(ChatHistory.created_at)
+        .all()
+    )
+
+    return [
+        {
+            "question": chat.question,
+            "answer": chat.answer,
+            "created_at": chat.created_at
+        }
+        for chat in chats
+    ]
+
+
+@router.delete("/conversations/{conversation_id}")
+def delete_conversation(
+    conversation_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    chats = (
+        db.query(ChatHistory)
+        .filter(
+            ChatHistory.user_email == current_user.email,
+            ChatHistory.conversation_id == conversation_id
+        )
+        .all()
+    )
+
+    for chat in chats:
+        db.delete(chat)
+
+    db.commit()
+
+    return {
+        "message": "Conversation deleted successfully"
     }
