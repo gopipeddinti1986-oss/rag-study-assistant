@@ -1,18 +1,40 @@
-import MainLayout from "./layout/MainLayout";
-import Header from "./components/Header";
-import UploadPanel from "./components/UploadPanel";
-import ChatPanel from "./components/ChatPanel";
+import { Routes, Route, Navigate } from "react-router-dom";
+
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Dashboard from "./pages/Dashboard";
+
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
-    <MainLayout>
-      <Header />
+    <Routes>
 
-      <main className="grid grid-cols-2 gap-6 p-6 max-w-7xl mx-auto">
-        <UploadPanel />
-        <ChatPanel />
-      </main>
-    </MainLayout>
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/login"
+        element={<Login />}
+      />
+
+      <Route
+        path="/signup"
+        element={<Signup />}
+      />
+
+      <Route
+        path="*"
+        element={<Navigate to="/" replace />}
+      />
+
+    </Routes>
   );
 }
 

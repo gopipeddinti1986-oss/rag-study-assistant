@@ -3,18 +3,40 @@ import chromadb
 # Create persistent database
 client = chromadb.PersistentClient(path="database")
 
-# Create (or load) collection
-collection = client.get_or_create_collection(
-    name="rag_documents"
-)
 
-
-def store_chunks(chunks, embeddings, filename, pages):
+def get_user_collection(user_email: str):
     """
-    Store chunks, embeddings, and metadata in ChromaDB.
+    Create or load a ChromaDB collection for a specific user.
     """
 
-    ids = [str(i) for i in range(len(chunks))]
+    collection_name = (
+        user_email
+        .replace("@", "_")
+        .replace(".", "_")
+    )
+
+    return client.get_or_create_collection(
+        name=collection_name
+    )
+
+
+def store_chunks(
+    chunks,
+    embeddings,
+    filename,
+    pages,
+    user_email
+):
+    """
+    Store chunks in the user's personal collection.
+    """
+
+    collection = get_user_collection(user_email)
+
+    ids = [
+        f"{filename}_{i}"
+        for i in range(len(chunks))
+    ]
 
     metadata = []
 

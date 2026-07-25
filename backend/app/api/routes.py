@@ -1,14 +1,20 @@
-from app.models.ask import AskRequest
-from app.services.retriever import retrieve
-from app.services.llm import ask_llm
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, Depends
+from sqlalchemy.orm import Session
 from pathlib import Path
-from app.services.text_splitter import split_text
-from app.services.embeddings import create_embeddings
-from app.services.vector_store import store_chunks
 import fitz
 import shutil
 
+from app.database.database import get_db
+from app.database.models import ChatHistory, User
+from app.auth.jwt import get_current_user
+
+from app.models.ask import AskRequest
+from app.services.text_splitter import split_text
+from app.services.embeddings import create_embeddings
+from app.services.vector_store import store_chunks
+from app.services.retriever import retrieve
+from app.services.llm import ask_llm
+from app.services.chat_service import save_chat
 
 router = APIRouter()
 
@@ -24,30 +30,28 @@ def home():
 
 
 @router.post("/upload")
-async def upload_pdf(file: UploadFile = File(...)):
+async def upload_pdf(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
     file_path = UPLOAD_DIR / file.filename
 
-    # Save uploaded file
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # Open PDF
     doc = fitz.open(file_path)
 
-    # Count pages
     page_count = len(doc)
 
-    # Extract text
     text = ""
     for page in doc:
         text += page.get_text()
 
-    # Close PDF
     doc.close()
 
-    # Split text into chunks
     chunks = split_text(text)
     embeddings = create_embeddings(chunks)
+
     pages = []
 
     for i in range(len(chunks)):
@@ -57,31 +61,36 @@ async def upload_pdf(file: UploadFile = File(...)):
         chunks,
         embeddings,
         file.filename,
-        pages
+        pages,
+        current_user.email
     )
 
-    # Count characters
-    character_count = len(text)
-
-    # Return response
     return {
-    "message": "File uploaded successfully",
-    "filename": file.filename,
-    "pages": page_count,
-    "characters": len(text),
-    "chunks": len(chunks),
-    "stored_chunks": stored_chunks,
-    "saved_to": str(file_path)
+        "message": "File uploaded successfully",
+        "filename": file.filename,
+        "pages": page_count,
+        "characters": len(text),
+        "chunks": len(chunks),
+        "stored_chunks": stored_chunks,
+        "saved_to": str(file_path)
     }
 
-@router.post("/ask")
-def ask_question(request: AskRequest):
 
-    chunks = retrieve(request.question)
+@router.post("/ask")
+def ask_question(
+    request: AskRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    chunks = retrieve(
+        request.question,
+        current_user.email
+    )
 
     context = "\n\n".join(
         chunk["text"] for chunk in chunks
     )
+
     prompt = f"""
 You are a helpful study assistant.
 
@@ -95,6 +104,14 @@ Question:
 """
 
     answer = ask_llm(prompt)
+
+
+    save_chat(
+        db=db,
+        user_email=current_user.email,
+        question=request.question,
+        answer=answer
+    )
 
     return {
         "question": request.question,
