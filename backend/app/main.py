@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
 from app.api.auth import router as auth_router
+from app.api.quiz import router as quiz_router
 
 from app.database.database import engine
 from app.database.models import Base
@@ -23,8 +24,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Existing RAG routes
+# Existing RAG APIs
 app.include_router(router)
 
-# Authentication routes
+# Authentication APIs
 app.include_router(auth_router)
+
+# Quiz APIs
+app.include_router(quiz_router)

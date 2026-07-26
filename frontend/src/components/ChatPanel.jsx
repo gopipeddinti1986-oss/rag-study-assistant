@@ -1,139 +1,235 @@
-import { useState } from "react";
-import { askQuestion } from "../api/api";
+import { useEffect, useRef, useState } from "react";
+import { askQuestion, getConversation } from "../api/api";
 
-function ChatPanel() {
-  // User question
+function ChatPanel({
+  currentConversation,
+  onConversationCreated,
+}) {
   const [question, setQuestion] = useState("");
-
-  // AI answer
-  const [answer, setAnswer] = useState(
-    "👋 Hello! Upload a PDF and ask any question."
-  );
-
-  // Source citations
-  const [sources, setSources] = useState([]);
-
-  // Loading state
+  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Send question to backend
-  async function handleSend() {
-    if (!question.trim()) {
-      alert("Please enter a question.");
+  const chatEndRef = useRef(null);
+
+  // Auto-scroll to the latest message
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [messages, loading]);
+
+  // Load selected conversation
+  useEffect(() => {
+    if (!currentConversation) {
+      setMessages([]);
       return;
     }
 
+    loadConversation(currentConversation);
+  }, [currentConversation]);
+
+  const loadConversation = async (conversationId) => {
     try {
-      setLoading(true);
+      const data = await getConversation(conversationId);
 
-      const result = await askQuestion(question);
+      const history = [];
 
-      console.log("Backend Response:", result);
+      data.forEach((chat) => {
+        history.push({
+          role: "user",
+          text: chat.question,
+        });
 
-      setAnswer(result.answer);
-      setSources(result.sources || []);
+        history.push({
+          role: "assistant",
+          text: chat.answer,
+        });
+      });
 
-      setQuestion("");
+      setMessages(history);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleAsk = async () => {
+    if (!question.trim()) return;
+
+    const userQuestion = question;
+
+    // Show user's message immediately
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        text: userQuestion,
+      },
+    ]);
+
+    setQuestion("");
+    setLoading(true);
+
+    try {
+      const response = await askQuestion(
+        userQuestion,
+        currentConversation
+      );
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: response.answer,
+        },
+      ]);
+
+      // New conversation created
+      if (!currentConversation && onConversationCreated) {
+        onConversationCreated(response.conversation_id);
+      }
     } catch (error) {
       console.error(error);
 
-      setAnswer("❌ Failed to get response from AI.");
-      setSources([]);
-    } finally {
-      setLoading(false);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: "❌ Something went wrong. Please try again.",
+        },
+      ]);
     }
-  }
+
+    setLoading(false);
+  };
 
   return (
-    <section className="bg-white rounded-xl shadow-lg p-6 flex flex-col h-[500px]">
+    <div className="flex flex-col h-full bg-gray-100">
 
-      {/* Title */}
-      <h2 className="text-2xl font-semibold mb-4">
-        🤖 AI Chat
-      </h2>
+      {/* Chat Area */}
+      <div className="flex-1 overflow-y-auto px-8 py-6">
 
-      {/* Chat Window */}
-      <div className="flex-1 border rounded-lg p-4 overflow-y-auto bg-gray-50">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center">
 
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
+            <h1 className="text-4xl font-bold mb-4">
+              📚 RAG Study Assistant
+            </h1>
 
-            <div className="flex items-center gap-3 bg-blue-100 text-blue-900 px-5 py-4 rounded-lg shadow">
+            <p className="text-gray-600 mb-8">
+              Ask questions about your uploaded PDF.
+            </p>
 
-              <div className="w-5 h-5 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <div className="bg-white rounded-xl shadow p-6 max-w-xl w-full">
 
-              <span className="font-medium">
-                🤖 AI is analyzing your document...
-              </span>
+              <p className="font-semibold mb-3">
+                Try asking:
+              </p>
+
+              <ul className="space-y-2 text-gray-600">
+
+                <li>📖 Summarize this chapter</li>
+
+                <li>🧠 Explain this topic simply</li>
+
+                <li>🎯 Give important interview questions</li>
+
+                <li>📝 Make short notes</li>
+
+              </ul>
 
             </div>
 
           </div>
         ) : (
+          <>
+            {messages.map((message, index) => (
 
-          <div className="bg-blue-100 text-blue-900 p-4 rounded-lg shadow">
+              <div
+                key={index}
+                className={`flex mb-5 ${
+                  message.role === "user"
+                    ? "justify-end"
+                    : "justify-start"
+                }`}
+              >
 
-            <p className="whitespace-pre-wrap">
-              {answer}
-            </p>
+                <div
+                  className={`max-w-3xl rounded-2xl px-5 py-4 shadow ${
+                    message.role === "user"
+                      ? "bg-blue-600 text-white"
+                      : "bg-white text-gray-800"
+                  }`}
+                >
 
-            {sources.length > 0 && (
-              <div className="mt-4 border-t pt-3">
+                  <div className="font-semibold mb-2">
 
-                <h3 className="font-semibold text-blue-700 mb-2">
-                  📄 Sources
-                </h3>
+                    {message.role === "user"
+                      ? "🧑 You"
+                      : "🤖 AI"}
 
-                {sources.map((source, index) => (
-                  <p
-                    key={index}
-                    className="text-sm text-gray-700"
-                  >
-                    • {source.filename} (Page {source.page})
-                  </p>
-                ))}
+                  </div>
+
+                  <div className="whitespace-pre-wrap">
+                    {message.text}
+                  </div>
+
+                </div>
+
+              </div>
+
+            ))}
+
+            {loading && (
+              <div className="flex">
+
+                <div className="bg-white rounded-xl px-5 py-4 shadow">
+
+                  🤖 Thinking...
+
+                </div>
 
               </div>
             )}
 
-          </div>
-
+            <div ref={chatEndRef}></div>
+          </>
         )}
 
       </div>
 
-      {/* Input Area */}
-      <div className="mt-4 flex gap-2">
+      {/* Input */}
+      <div className="border-t bg-white p-5">
 
-        <input
-          type="text"
-          placeholder="Ask a question..."
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !loading) {
-              handleSend();
+        <div className="flex gap-4">
+
+          <input
+            type="text"
+            value={question}
+            onChange={(e) =>
+              setQuestion(e.target.value)
             }
-          }}
-          disabled={loading}
-          className="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-        />
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleAsk();
+              }
+            }}
+            placeholder="Ask anything about your PDF..."
+            className="flex-1 border rounded-xl px-5 py-4 outline-none focus:ring-2 focus:ring-blue-500"
+          />
 
-        <button
-          onClick={handleSend}
-          disabled={loading}
-          className={`px-5 rounded-lg text-white transition ${
-            loading
-              ? "bg-gray-500 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700"
-          }`}
-        >
-          {loading ? "🤖 Analyzing..." : "Send"}
-        </button>
+          <button
+            onClick={handleAsk}
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 rounded-xl transition disabled:opacity-50"
+          >
+            Send 🚀
+          </button>
+
+        </div>
 
       </div>
 
-    </section>
+    </div>
   );
 }
 

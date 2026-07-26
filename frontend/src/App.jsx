@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
+import Quiz from "./pages/Quiz";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -15,6 +16,15 @@ function App() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/quiz"
+        element={
+          <ProtectedRoute>
+            <Quiz />
           </ProtectedRoute>
         }
       />

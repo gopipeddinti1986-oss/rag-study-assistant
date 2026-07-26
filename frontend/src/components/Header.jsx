@@ -1,15 +1,15 @@
 function Header() {
   return (
-    <header className="bg-blue-600 text-white shadow-md">
-      <div className="max-w-7xl mx-auto px-6 py-5">
-        <h1 className="text-3xl font-bold">
-          📚 RAG Study Assistant
-        </h1>
+    <header className="bg-white border-b px-8 py-5 shadow-sm">
 
-        <p className="mt-2 text-blue-100">
-          AI-powered PDF Question Answering System
-        </p>
-      </div>
+      <h1 className="text-2xl font-bold">
+        📚 RAG Study Assistant
+      </h1>
+
+      <p className="text-gray-500 mt-1">
+        Upload PDFs and chat with your documents using AI.
+      </p>
+
     </header>
   );
 }
