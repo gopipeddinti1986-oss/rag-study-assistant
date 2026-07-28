@@ -1,5 +1,6 @@
 from pathlib import Path
 import shutil
+import uuid
 
 import fitz
 from fastapi import APIRouter, UploadFile, File, Depends
@@ -44,24 +45,28 @@ async def upload_pdf(
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # Count pages
-    doc = fitz.open(file_path)
-    page_count = len(doc)
-    doc.close()
+    ext = file_path.suffix.lower()
+    page_count = 1
 
-    # Extract text (Normal PDF or OCR)
+    if ext == ".pdf":
+        try:
+            doc = fitz.open(file_path)
+            page_count = len(doc)
+            doc.close()
+        except Exception:
+            page_count = 1
+
     text = extract_text(str(file_path))
 
     if not text.strip():
         return {
-            "message": "No text could be extracted from this PDF."
+            "message": f"No text could be extracted from {file.filename}."
         }
 
     chunks = split_text(text)
     embeddings = create_embeddings(chunks)
 
     pages = []
-
     for i in range(len(chunks)):
         pages.append(min(i + 1, page_count))
 
@@ -82,6 +87,7 @@ async def upload_pdf(
         "stored_chunks": stored_chunks,
         "saved_to": str(file_path)
     }
+
 
 
 @router.post("/ask")
@@ -134,7 +140,6 @@ Question:
         ]
     }
 
-
 @router.get("/conversations")
 def get_conversations(
     db: Session = Depends(get_db),
@@ -170,9 +175,10 @@ def get_conversation(
         db.query(ChatHistory)
         .filter(
             ChatHistory.user_email == current_user.email,
-            ChatHistory.conversation_id == conversation_id
+            ChatHistory.conversation_id == conversation_id,
+            ChatHistory.question != ""
         )
-        .order_by(ChatHistory.created_at)
+        .order_by(desc(ChatHistory.created_at))
         .all()
     )
 
@@ -208,4 +214,29 @@ def delete_conversation(
 
     return {
         "message": "Conversation deleted successfully"
+    }
+
+
+@router.post("/conversations/new")
+def create_new_conversation(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    conversation_id = str(uuid.uuid4())
+
+    chat = ChatHistory(
+        user_email=current_user.email,
+        conversation_id=conversation_id,
+        title="New Chat",
+        question="",
+        answer=""
+    )
+
+    db.add(chat)
+    db.commit()
+    db.refresh(chat)
+
+    return {
+        "conversation_id": conversation_id,
+        "title": "New Chat"
     }

@@ -6,9 +6,7 @@ model = SentenceTransformer("all-MiniLM-L6-v2")
 
 def create_embeddings(chunks):
     """
-    Convert text chunks into vector embeddings.
+    Create embeddings for a list of text chunks.
     """
-
     embeddings = model.encode(chunks)
-
-    return embeddings
+    return embeddings.tolist()

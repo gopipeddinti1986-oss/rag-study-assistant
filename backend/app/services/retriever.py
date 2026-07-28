@@ -4,7 +4,7 @@ from app.services.vector_store import get_user_collection
 def retrieve(
     query,
     user_email,
-    k=5
+    k=25
 ):
     """
     Retrieve relevant chunks from the logged-in user's

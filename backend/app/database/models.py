@@ -165,3 +165,42 @@ class ChatMessage(Base):
         "Conversation",
         back_populates="messages"
     )
+
+class Bookmark(Base):
+    __tablename__ = "bookmarks"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    user_email = Column(
+        String,
+        ForeignKey("users.email"),
+        nullable=False,
+        index=True
+    )
+
+    conversation_id = Column(
+        String,
+        nullable=False,
+        index=True
+    )
+
+    question = Column(
+        Text,
+        nullable=False
+    )
+
+    answer = Column(
+        Text,
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
+
+    user = relationship("User")
